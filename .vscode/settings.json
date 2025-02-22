@@ -1,0 +1,113 @@
+{
+    "files.associations": {
+        "iostream": "cpp",
+        "vector": "cpp",
+        "new": "cpp",
+        "iosfwd": "cpp",
+        "ostream": "cpp",
+        "unordered_set": "cpp",
+        "unordered_map": "cpp",
+        "utility": "cpp",
+        "array": "cpp",
+        "atomic": "cpp",
+        "bit": "cpp",
+        "*.tcc": "cpp",
+        "cctype": "cpp",
+        "chrono": "cpp",
+        "clocale": "cpp",
+        "cmath": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "cstdarg": "cpp",
+        "cstddef": "cpp",
+        "cstdint": "cpp",
+        "cstdio": "cpp",
+        "cstdlib": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "cwchar": "cpp",
+        "cwctype": "cpp",
+        "deque": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "string": "cpp",
+        "exception": "cpp",
+        "algorithm": "cpp",
+        "functional": "cpp",
+        "iterator": "cpp",
+        "memory": "cpp",
+        "memory_resource": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "ratio": "cpp",
+        "string_view": "cpp",
+        "system_error": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "initializer_list": "cpp",
+        "istream": "cpp",
+        "limits": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "stdexcept": "cpp",
+        "stop_token": "cpp",
+        "streambuf": "cpp",
+        "thread": "cpp",
+        "typeinfo": "cpp",
+        "condition_variable": "cpp",
+        "list": "cpp",
+        "mutex": "cpp"
+    },
+
+    // ctrl+N新建文件后默认的语言
+    "files.defaultLanguage": "cpp",
+
+    // 输入时就进行格式化，默认触发字符较少，分号可以触发
+    "editor.formatOnType": true,
+
+    // snippets代码优先显示补全
+    "editor.snippetSuggestions": "top",
+
+    //optional
+
+    // 控制编辑器字体
+    "editor.fontFamily": "'Consolas'",  // "等距更纱黑体 SC",
+
+     // 主题
+    "workbench.colorTheme": "One Dark Pro",
+
+    // 保存时，删除每一行末尾的空格
+    "files.trimTrailingWhitespace": true,
+
+    // 保存后文件最末尾加一行空格
+    "files.insertFinalNewline": true,
+
+    // 自定义颜色
+    "workbench.colorCustomizations": {
+            "activityBar.foreground": "#39C5BB"
+        },
+
+    // 如果你不用git，可以考虑关闭它
+    "git.enabled": true,
+
+    // 同上
+    "git.ignoreMissingGitWarning": true,
+
+    // 我个人不用minimap，就是右边那个东西
+    "editor.minimap.enabled": false,
+
+    // 选中文字后，可以拖动它们调整位置
+    "editor.dragAndDrop": false,
+
+    // 启用后，会在打开文件时尝试猜测字符集编码
+    "files.autoGuessEncoding": false,
+
+    "[c]": {
+        // "files.encoding": "gbk" // 这样的格式可以对指定后缀的文件应用设置，如果你实在想用gbk，就这样设置吧。cpp同理。
+    },
+
+    // 整体放大
+    "window.zoomLevel": 0.2,
+
+    "workbench.settings.useSplitJSON": true,
+}
