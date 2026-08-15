@@ -11,16 +11,22 @@
 #endif
 
 const int NUM_REPEATS = 10;
+const int N = 100000000;
+const int M = sizeof(real) * N;
+
+const int THREAD_PER_BLOCK = 128;
+const int BLOCK_NUM = (N + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK;
+
 const real a = 1.23;
 const real b = 2.34;
 const real c = 3.57;
+
 void __global__ add(const real *x, const real *y, real *z, const int N);
+void timing(const real *x, const real *y, real *z, const int N);
 void check(const real *z, const int N);
 
 int main(void)
 {
-    const int N = 100000000;
-    const int M = sizeof(real) * N;
     real *h_x = (real*) malloc(M);
     real *h_y = (real*) malloc(M);
     real *h_z = (real*) malloc(M);
@@ -38,40 +44,7 @@ int main(void)
     CHECK(cudaMemcpy(d_x, h_x, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_y, h_y, M, cudaMemcpyHostToDevice));
 
-    const int block_size = 128;
-    const int grid_size = (N + block_size - 1) / block_size;
-
-    float t_sum = 0;
-    float t2_sum = 0;
-    for (int repeat = 0; repeat <= NUM_REPEATS; ++repeat)
-    {
-        cudaEvent_t start, stop;
-        CHECK(cudaEventCreate(&start));
-        CHECK(cudaEventCreate(&stop));
-        CHECK(cudaEventRecord(start));
-        cudaEventQuery(start);
-
-        add<<<grid_size, block_size>>>(d_x, d_y, d_z, N);
-
-        CHECK(cudaEventRecord(stop));
-        CHECK(cudaEventSynchronize(stop));
-        float elapsed_time;
-        CHECK(cudaEventElapsedTime(&elapsed_time, start, stop));
-        printf("Time = %g ms.\n", elapsed_time);
-
-        if (repeat > 0)
-        {
-            t_sum += elapsed_time;
-            t2_sum += elapsed_time * elapsed_time;
-        }
-
-        CHECK(cudaEventDestroy(start));
-        CHECK(cudaEventDestroy(stop));
-    }
-
-    const float t_ave = t_sum / NUM_REPEATS;
-    const float t_err = sqrt(t2_sum / NUM_REPEATS - t_ave * t_ave);
-    printf("Time = %g +- %g ms.\n", t_ave, t_err);
+    timing(h_x, h_y, h_z, N);
 
     CHECK(cudaMemcpy(h_z, d_z, M, cudaMemcpyDeviceToHost));
     check(h_z, N);
@@ -92,6 +65,41 @@ void __global__ add(const real *x, const real *y, real *z, const int N)
     {
         z[n] = x[n] + y[n];
     }
+}
+
+void timing(const real *x, const real *y, real *z, const int N)
+{
+    float t_sum = 0;
+    float t2_sum = 0;
+    for (int repeat = 0; repeat <= NUM_REPEATS; ++repeat)
+    {
+        cudaEvent_t start, stop;
+        CHECK(cudaEventCreate(&start));
+        CHECK(cudaEventCreate(&stop));
+        CHECK(cudaEventRecord(start));
+        cudaEventQuery(start);
+
+        add<<<BLOCK_NUM, THREAD_PER_BLOCK>>>(d_x, d_y, d_z, N);
+
+        CHECK(cudaEventRecord(stop));
+        CHECK(cudaEventSynchronize(stop));
+        float elapsed_time;
+        CHECK(cudaEventElapsedTime(&elapsed_time, start, stop));
+        printf("Time = %g ms.\n", elapsed_time);
+
+        if (repeat > 0)
+        {
+            t_sum += elapsed_time;
+            t2_sum += elapsed_time * elapsed_time;
+        }
+
+        CHECK(cudaEventDestroy(start));
+        CHECK(cudaEventDestroy(stop));
+    }
+
+    const float t_ave = t_sum / NUM_REPEATS;
+    const float t_err = sqrt(t2_sum / NUM_REPEATS - t_ave * t_ave);
+    printf("Time = %g +- %g ms.\n", t_ave, t_err);
 }
 
 void check(const real *z, const int N)
