@@ -11,22 +11,16 @@
 #endif
 
 const int NUM_REPEATS = 10;
-const int N = 100000000;
-const int M = sizeof(real) * N;
-
-const int THREAD_PER_BLOCK = 128;
-const int BLOCK_NUM = (N + THREAD_PER_BLOCK - 1) / THREAD_PER_BLOCK;
-
 const real a = 1.23;
 const real b = 2.34;
 const real c = 3.57;
-
 void __global__ add(const real *x, const real *y, real *z, const int N);
-void timing(const real *x, const real *y, real *z, const int N);
 void check(const real *z, const int N);
 
 int main(void)
 {
+    const int N = 100000000;
+    const int M = sizeof(real) * N;
     real *h_x = (real*) malloc(M);
     real *h_y = (real*) malloc(M);
     real *h_z = (real*) malloc(M);
@@ -44,31 +38,9 @@ int main(void)
     CHECK(cudaMemcpy(d_x, h_x, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_y, h_y, M, cudaMemcpyHostToDevice));
 
-    timing(h_x, h_y, h_z, N);
+    const int block_size = 128;
+    const int grid_size = (N + block_size - 1) / block_size;
 
-    CHECK(cudaMemcpy(h_z, d_z, M, cudaMemcpyDeviceToHost));
-    check(h_z, N);
-
-    free(h_x);
-    free(h_y);
-    free(h_z);
-    CHECK(cudaFree(d_x));
-    CHECK(cudaFree(d_y));
-    CHECK(cudaFree(d_z));
-    return 0;
-}
-
-void __global__ add(const real *x, const real *y, real *z, const int N)
-{
-    const int n = blockDim.x * blockIdx.x + threadIdx.x;
-    if (n < N)
-    {
-        z[n] = x[n] + y[n];
-    }
-}
-
-void timing(const real *x, const real *y, real *z, const int N)
-{
     float t_sum = 0;
     float t2_sum = 0;
     for (int repeat = 0; repeat <= NUM_REPEATS; ++repeat)
@@ -79,7 +51,7 @@ void timing(const real *x, const real *y, real *z, const int N)
         CHECK(cudaEventRecord(start));
         cudaEventQuery(start);
 
-        add<<<BLOCK_NUM, THREAD_PER_BLOCK>>>(d_x, d_y, d_z, N);
+        add<<<grid_size, block_size>>>(d_x, d_y, d_z, N);
 
         CHECK(cudaEventRecord(stop));
         CHECK(cudaEventSynchronize(stop));
@@ -100,6 +72,26 @@ void timing(const real *x, const real *y, real *z, const int N)
     const float t_ave = t_sum / NUM_REPEATS;
     const float t_err = sqrt(t2_sum / NUM_REPEATS - t_ave * t_ave);
     printf("Time = %g +- %g ms.\n", t_ave, t_err);
+
+    CHECK(cudaMemcpy(h_z, d_z, M, cudaMemcpyDeviceToHost));
+    check(h_z, N);
+
+    free(h_x);
+    free(h_y);
+    free(h_z);
+    CHECK(cudaFree(d_x));
+    CHECK(cudaFree(d_y));
+    CHECK(cudaFree(d_z));
+    return 0;
+}
+
+void __global__ add(const real *x, const real *y, real *z, const int N)
+{
+    const int n = blockDim.x * blockIdx.x + threadIdx.x;
+    if (n < N)
+    {
+        z[n] = x[n] + y[n];
+    }
 }
 
 void check(const real *z, const int N)

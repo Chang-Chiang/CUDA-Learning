@@ -4,32 +4,22 @@
 
 #ifdef USE_DP
     typedef double real;
-    const real EPSILON = 1.0e-15;
 #else
     typedef float real;
-    const real EPSILON = 1.0e-6f;
 #endif
 
 const int NUM_REPEATS = 10;
 const int N = 100000000;
-const int N_host = N / 11;
-const int N_device = N * 10 / 11;
 const int M = sizeof(real) * N;
-
-const int THREAD_PER_BLOCK = 128;
-const int BLOCK_NUM = (N - 1) / THREAD_PER_BLOCK + 1;
-
-const real a = 1.23;
-const real b = 2.34;
-const real c = 3.57;
+const int block_size = 128;
+const int grid_size = (N - 1) / block_size + 1;
 
 void timing
 (
     const real *h_x, const real *h_y, real *h_z,
-    const real *d_x, const real *d_y, real *d_z
+    const real *d_x, const real *d_y, real *d_z,
+    const int ratio, bool overlap
 );
-
-void check(const real *z, const int N);
 
 int main(void)
 {
@@ -38,8 +28,8 @@ int main(void)
     real *h_z = (real*) malloc(M);
     for (int n = 0; n < N; ++n)
     {
-        h_x[n] = a;
-        h_y[n] = b;
+        h_x[n] = 1.23;
+        h_y[n] = 2.34;
     }
 
     real *d_x, *d_y, *d_z;
@@ -49,10 +39,20 @@ int main(void)
     CHECK(cudaMemcpy(d_x, h_x, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_y, h_y, M, cudaMemcpyHostToDevice));
 
-    timing(h_x, h_y, h_z, d_x, d_y, d_z);
+    printf("Without CPU-GPU overlap (ratio = 10)\n");
+    timing(h_x, h_y, h_z, d_x, d_y, d_z, 10, false);
+    printf("With CPU-GPU overlap (ratio = 10)\n");
+    timing(h_x, h_y, h_z, d_x, d_y, d_z, 10, true);
 
-    CHECK(cudaMemcpy(h_z, d_z, M, cudaMemcpyDeviceToHost));
-    check(h_z, N);
+    printf("Without CPU-GPU overlap (ratio = 1)\n");
+    timing(h_x, h_y, h_z, d_x, d_y, d_z, 1, false);
+    printf("With CPU-GPU overlap (ratio = 1)\n");
+    timing(h_x, h_y, h_z, d_x, d_y, d_z, 1, true);
+
+    printf("Without CPU-GPU overlap (ratio = 1000)\n");
+    timing(h_x, h_y, h_z, d_x, d_y, d_z, 1000, false);
+    printf("With CPU-GPU overlap (ratio = 1000)\n");
+    timing(h_x, h_y, h_z, d_x, d_y, d_z, 1000, true);
 
     free(h_x);
     free(h_y);
@@ -64,7 +64,7 @@ int main(void)
     return 0;
 }
 
-void cpu_sum(const real *x, const real *y, real *z)
+void cpu_sum(const real *x, const real *y, real *z, const int N_host)
 {
     for (int n = 0; n < N_host; ++n)
     {
@@ -75,7 +75,7 @@ void cpu_sum(const real *x, const real *y, real *z)
 void __global__ gpu_sum(const real *x, const real *y, real *z)
 {
     const int n = blockDim.x * blockIdx.x + threadIdx.x;
-    if (n < N_device && n >= N_host)
+    if (n < N)
     {
         z[n] = x[n] + y[n];
     }
@@ -84,7 +84,8 @@ void __global__ gpu_sum(const real *x, const real *y, real *z)
 void timing
 (
     const real *h_x, const real *h_y, real *h_z,
-    const real *d_x, const real *d_y, real *d_z
+    const real *d_x, const real *d_y, real *d_z,
+    const int ratio, bool overlap
 )
 {
     float t_sum = 0;
@@ -98,8 +99,17 @@ void timing
         CHECK(cudaEventRecord(start));
         cudaEventQuery(start);
 
-        gpu_sum<<<BLOCK_NUM, THREAD_PER_BLOCK>>>(d_x, d_y, d_z);
-        cpu_sum(h_x, h_y, h_z);
+        if (!overlap)
+        {
+            cpu_sum(h_x, h_y, h_z, N / ratio);
+        }
+
+        gpu_sum<<<grid_size, block_size>>>(d_x, d_y, d_z);
+
+        if (overlap)
+        {
+            cpu_sum(h_x, h_y, h_z, N / ratio);
+        }
  
         CHECK(cudaEventRecord(stop));
         CHECK(cudaEventSynchronize(stop));
@@ -122,15 +132,4 @@ void timing
     printf("Time = %g +- %g ms.\n", t_ave, t_err);
 }
 
-void check(const real *z, const int N)
-{
-    bool has_error = false;
-    for (int n = 0; n < N; ++n)
-    {
-        if (fabs(z[n] - c) > EPSILON)
-        {
-            has_error = true;
-        }
-    }
-    printf("%s\n", has_error ? "Has errors" : "No errors");
-}
+
